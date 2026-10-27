@@ -1,0 +1,46 @@
+name: Run PHP & Tunnel
+
+on:
+  schedule:
+    - cron: '0 */5 * * *' # كيعاود يشغل السيرفر كل 5 ساعات
+  workflow_dispatch: # تقدر تشغلو بيدك
+
+jobs:
+  run-server:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+
+      - name: Start PHP Server
+        run: |
+          # تشغيل السيرفر ديالك
+          nohup php -S 127.0.0.1:8080 rob.php > php.log 2>&1 &
+          sleep 2
+
+      - name: Install Cloudflared
+        run: |
+          # تحميل أداة النفق ديال كلاودفلير
+          wget -q https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb
+          sudo dpkg -i cloudflared-linux-amd64.deb
+
+      - name: Start Tunnel & Get Link
+        run: |
+          # تشغيل النفق
+          cloudflared tunnel --url http://127.0.0.1:8080 > tunnel.log 2>&1 &
+          sleep 15
+          
+          # استخراج الرابط وطباعته
+          URL=$(grep -oE 'https://[a-z0-9-]+\.trycloudflare\.com' tunnel.log | head -n 1)
+          echo "=================================================="
+          echo "الرابط ديالك هو: $URL"
+          echo "=================================================="
+          
+          # الحفاظ على السيرفر خدام حتى يقتلو GitHub
+          sleep 21000
